@@ -1,0 +1,269 @@
+K8s commands
+
+
+docker image pull richardchesterwood/k8s-fleetman-webapp-angular:release0-5
+
+docker container run -p 8080:80 -d richardchesterwood/k8s-fleetman-webapp-angular:release0-5  
+
+docker container ls
+
+❯  minikube ip
+
+❯ docker container stop c21
+
+❯ docker container rm c21
+
+
+
+
+Working with a pods and services
+
+kubectl apply -f first-pod.yaml
+
+kubectl apply -f webapp-service.yaml
+
+kubectl get all
+
+kubectl get all -o wide
+
+kubectl describe pod webapp
+
+kubectl exec webapp -- ls
+
+kubectl -it exec webapp sh (interactive TTY comm.)
+
+kubectl get pods --show-labels -l release=0-5
+
+
+
+
+ReplicaSets
+
+kubectl apply -f .
+
+kubectl describe rs webapp
+
+kubectl delete rs webapp
+
+
+
+
+Deployments
+
+kubectl rollout status deployment webapp
+
+kubectl rollout history deployment webapp
+
+kubectl rollout undo deploy webapp --to-revision=2
+
+
+
+
+
+Namespaces
+
+kubectl get namespaces/ns
+
+kubectl get pods -n kube-system
+
+
+
+
+Networking and service discovery
+
+kubernetes use resolve.conf in containers to talk to kube-dns
+
+kubectl exec -it webapp-86bd4996fc-k7rhg sh
+cat /etc/resolv.conf
+apk update
+apk add mysql-client
+mysql -h database -uroot -ppassword fleetman
+create table testtable (test varchar(255));
+show tables;
+
+
+
+
+FQDN (Fully Qualified Domain Name)
+nslookup database.mynamespace
+
+
+
+
+Fixing minikube
+
+vim ~/.minikube/profiles/minikube/config.json
+minikube stop
+minikube delete
+rm -rf ~/.kube
+rm -rf ~/.minikube
+minikube start --memory 4096  
+
+
+
+
+
+Microservices
+
+1) Monolith gets bloated. Too big to manage easily.
+
+2) Gets harder to make changes to one business area, without you accidentally breaking another business area.
+
+3) It gets harder to coordinate. Delay in relases due to coordinated upgrades. 
+
+4) Big release at one time
+
+Comes microservices, an extreme form of modularity, of building the system as a set of
+self-contained components, can function, developed and deployed on their own.
+Individual servers are expensive so microservices are deployed to their own containers.
+REST and message queues for comms.
+Responsible for only one business requirement. two pizza rule.
+
+Two software design principles relevant to microservices.
+Highly cohesive. Cohesive means that a microservice should have a single set of responsibilities. (mailing lists + email newsletters).
+Loose coupling. Minimize the interfaces between our microservices.
+
+No integration databases, each microservice will maintain its own data store.
+First advantage, multiple types of data storage. Think differently about the data models.
+
+Even break the user table into Principal(User authentication data) and AddressBook(User Address) for different microservice needs.
+
+
+BoundedContext
+https://martinfowler.com/bliki/BoundedContext.html
+
+APIGateway Pattern
+https://microservices.io/patterns/apigateway.html
+
+Microservices must be designed to be deployed in any order otherwise we have what is called a coupling. For example, deploying webapp after db is deployed first(Coupling case). Instead we should have the webapp services detect and retry if database is not deployed yet to avoid coupling.
+
+
+Debugging a pod
+
+kubectl logs position-simulator-77c7c7f55f-sgcxl
+kubectl logs pod/position-simulator-77c7c7f55f-sgcxl
+kubectl logs position-simulator-77c7c7f55f-sgcxl -f
+
+
+
+NodePort(for outside comm.) and ClusterIP(for cluster internal comm.)
+
+
+
+Persistent Volume
+
+volumeMounts - what to store
+volume - where to store
+
+
+PersistentVolumeClaim
+storageClassName, accessModes and storage filters
+
+kubectl get pv
+
+minikube ssh
+
+
+
+
+
+production level on AWS
+
+    1  export NAME=fleetman.k8s.local
+    2  export KOPS_STATE_STORE=s3://sjindal-state-storage
+    4  aws ec2 describe-availability-zones --region us-east-2
+    5  kops create cluster --zones us-east-2a,us-east-2b,us-east-2c ${NAME}
+    6  ssh-keygen -b 2048 -t rsa -f ~/.ssh/id_rsa
+    7  kops create secret --name fleetman.k8s.local sshpublickey admin -i ~/.ssh/id_rsa.pub
+    8  kops edit cluster ${NAME}
+    9  kops edit ig nodes --name ${NAME}
+   10  kops get ig --name ${NAME}
+
+
+
+
+
+DaemonSets - A DaemonSet ensures that all (or some) Nodes run a copy of a Pod.
+StatefulSets - StatefulSet is the workload API object used to manage stateful applications.
+ConfigMaps - A ConfigMap is an API object used to store non-confidential data in key-value pairs. Pods can consume ConfigMaps as environment variables, command-line arguments, or as configuration files in a volume.
+
+
+
+
+Installing helm v3 and Prometheus grafana for monitoring
+
+kubectl create namespace monitoring
+kubectl get namespace
+helm install monitoring stable/prometheus-operator --namespace monitoring
+kubectl --namespace monitoring get pods -l "release=monitoring"
+
+
+
+
+Changing values of kubernetes deployed resources on the fly
+Kubectl edit -n monitoring service/my-service
+
+https://medium.com/google-cloud/kubernetes-nodeport-vs-loadbalancer-vs-ingress-when-should-i-use-what-922f010849e0
+
+
+USE Method
+Utilization, Saturation and Errors.
+
+
+kubectl config view
+
+https://api-fleetman-k8s-local-tkmafs-1736144971.us-east-2.elb.amazonaws.com/api/v1/namespaces/monitoring/services
+
+https://api-fleetman-k8s-local-tkmafs-1736144971.us-east-2.elb.amazonaws.com/api/v1/namespaces/monitoring/services/alertmanager-operated:9093/proxy/#/alerts
+
+Dead Man Switch
+
+
+
+kubectl get secret -n monitoring alertmanager-monitoring-prometheus-oper-alertmanager -o json
+kubectl delete secret -n monitoring alertmanager-monitoring-prometheus-oper-alertmanager
+
+
+
+
+
+Requests and limits
+Specifying resource requests really ensure the engine provides sufficient resource.
+
+Kubectl describe node Minikube
+
+Requests are for scheduling the pods
+Limits are for killing (exceed memory) or throttling(exceed cpu) containers
+
+
+
+
+Profiling a kubernetes cluster
+Kubectl top pod
+Kubectl top node
+Minikube dashboard
+
+Minikube addons list
+Minikube addons enable metrics-server
+
+
+Kubectl autoscale deployment api-gateway --cpu-percent 400 --min 1 --max 4
+Kubectl get spa	
+Kubectl describe hpa api-gateway
+
+
+kubectl get hpa api-gateway -o yaml
+kubectl delete -f autoscale-rules.yaml
+
+
+
+We should avoid thrashing, when autoscaling. Kubernetes automatically does that by waiting for some time, like 5 minutes and then autoscale, just like an alert.
+
+
+We should also have a readiness probe specially with autoscaling.
+We should also have liveness probe.
+
+
+
+
+
